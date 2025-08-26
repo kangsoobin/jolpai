@@ -1,5 +1,5 @@
 import os
-from llama_cpp import Llama
+#from llama_cpp import Llama
 from langchain_core.documents import Document
 from rag_engine.loader import load_pdf
 from rag_engine.embedder import get_embedder

@@ -1,5 +1,5 @@
 from langchain.prompts import PromptTemplate
-from rag_engine.llm import load_llm
+#from rag_engine.llm import load_llm
 from rag_engine.embedder import get_embedder
 from rag_engine.vector_store import load_vector_db, add_to_vector_db
 from rag_engine.search import search_serper
@@ -164,17 +164,21 @@ def generate_report(
     #  태그 생성 (LLM 콜백으로 call_claude 주입)
     if output:
         try:
+            print("🎯 태그 생성 시작 - article 길이:", len(output), "topic:", topic)
             tags = generate_keyword_tags(
                 article=output,
                 topic=topic,
                 llm_fn=lambda p, mt: call_claude(p, max_tokens=mt),  # ← 의존성 주입
                 max_tags=12
             )
-            print("🏷️ 태그 생성 완료:", tags)
+            print("🏷️ 태그 생성 완료:", tags, "(타입:", type(tags), "길이:", len(tags), ")")
         except Exception as e:
             print("❌ 태그 생성 실패:", e)
+            import traceback
+            traceback.print_exc()
             tags = []
     else:
+        print("❌ output이 없어서 태그 생성 건너뜀")
         tags = []
         
     # 트윗생성
@@ -199,7 +203,7 @@ def generate_report(
 
 
     # 10. JSON 형태로 반환
-    return {
+    result = {
         "user_request": f"{topic}",
         "title": title_output,
         "content": output.strip(),
@@ -207,6 +211,13 @@ def generate_report(
         "tags": tags,
         "captions": captions,
     }
+    print("📦 최종 반환 결과:")
+    print(f"  - title: {result['title']}")
+    print(f"  - content 길이: {len(result['content'])}")
+    print(f"  - sources: {result['sources']}")
+    print(f"  - tags: {result['tags']} (타입: {type(result['tags'])}, 길이: {len(result['tags'])})")
+    print(f"  - captions: {result['captions']}")
+    return result
 
 
 

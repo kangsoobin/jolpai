@@ -54,4 +54,20 @@ async def generate_report_endpoint(
             upload_paths.append(p)
 
     result = run_generate_report(prompt, upload_paths)
-    return result
+    
+    # ✅ 응답 구조 검증 및 로깅
+    print("🚀 API 엔드포인트에서 반환할 결과:")
+    print(f"  - 전체 result: {result}")
+    print(f"  - tags: {result.get('tags')} (타입: {type(result.get('tags'))}, 길이: {len(result.get('tags', []))})")
+    print(f"  - captions: {result.get('captions')}")
+    print(f"  - 전체 결과 키들: {list(result.keys())}")
+    
+    # ✅ Pydantic 모델로 검증
+    try:
+        from api.schemas.report_schema import GenerateReportResponse
+        validated_result = GenerateReportResponse(**result)
+        print(f"✅ Pydantic 검증 성공: tags={validated_result.tags}")
+        return validated_result
+    except Exception as e:
+        print(f"❌ Pydantic 검증 실패: {e}")
+        return result
