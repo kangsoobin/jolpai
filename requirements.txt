@@ -1,0 +1,23 @@
+langchain>=0.1.17
+langchain-core>=0.1.51
+langchain-community>=0.0.35
+chromadb>=0.4.22
+transformers>=4.40.0
+accelerate>=0.29.0
+sentence-transformers>=2.6.1
+python-dotenv>=1.0.1
+tqdm>=4.66.2
+
+# optional: for LLaMA-Ko model support
+# torch>=2.1.2
+
+
+# optional: CLI UX improvement
+rich>=13.7.0
+
+
+fastapi
+uvicorn
+pandas
+python-multipart
+huggingface_hub
