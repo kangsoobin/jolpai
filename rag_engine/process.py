@@ -11,7 +11,7 @@ load_dotenv()  # .env 파일 로드
 
 
 
-# ✅ LLM 모델 로드
+# LLM 모델 로드
 # llm = Llama(
 #     model_path="models/llama-3.2-Korean-Bllossom-3B-Q6_K_L.gguf",
 #     n_ctx=4096,
