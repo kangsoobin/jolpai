@@ -20,6 +20,10 @@ from rag_engine.process import process_multiple_files
 from rag_engine.tagger import generate_keyword_tags
 from rag_engine.captioner import generate_captions
 import io, base64, uuid, os
+from cli_runner import is_supported
+from rag_engine.process import process_multiple_files
+
+
 
 load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -43,6 +47,10 @@ def call_claude(prompt: str, max_tokens: int = 512) -> str:
     return response.json()["content"][0]["text"]
 
 
+def _is_supported(path: str) -> bool:
+    return os.path.isfile(path) and path.lower().endswith((".pdf", ".csv"))
+
+
 
 def generate_report(
     topic: str,
@@ -51,43 +59,21 @@ def generate_report(
     references: Optional[List[str]] = None,
 ):
     print("📌 1. 함수 진입 - topic:", topic)
-    docs = []
-    # 1. PDF 업로드 → 저장
-    if file is not None:
-        print("📌 2. 파일 저장 시작 - filename:", file.filename)
-        save_dir = os.path.join(os.getcwd(), "data")
-        os.makedirs(save_dir, exist_ok=True)
-        filename = f"{uuid.uuid4().hex}_{file.filename}"
-        file_path = os.path.join(save_dir, filename)
-
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
-        print("✅ 3. 파일 저장 완료 - path:", file_path)
-
-        # 2. PDF → 문서 분할
-        pages = load_pdf(file_path)
-        print("✅ 4. PDF 로딩 완료 - pages:", len(pages))
-        docs = [
-            Document(page_content=page.page_content, metadata={"source": filename, "page": i})
-            for i, page in enumerate(pages)
-        ]
-    if file_paths:
-        process_multiple_files(file_paths) 
-
-    # 3. 벡터 DB에 임베딩
+    
+    
+        
+    # 벡터DB 열고 검색
     embedder = get_embedder()
     vectordb = load_vector_db(embedder)
-    if docs:
-        add_to_vector_db(docs, vectordb)
-        print("✅ 5. 벡터 DB 추가 완료")
-
+    
+    
 
     # 4. 관련 문서 검색(내부검색)
     retriever = vectordb.as_retriever()
     internal_docs = retriever.get_relevant_documents(topic)
     
     # 외부 검색 (Serper)
-    external_docs = search_serper(topic, num_results=3)
+    #external_docs = search_serper(topic, num_results=3)
 
     # 6. 문서 통합 및 컨텍스트 구성성
     # all_docs = internal_docs + external_docs
@@ -104,30 +90,6 @@ def generate_report(
     full_prompt = prompt_template.format(context=context, question=topic)
     print("📌 7. 프롬프트 생성 완료")
 
-   
-    # llm = load_llm()
-
-    # ✅ 토큰 수 체크 및 자르기
-    # prompt_tokens = llm.tokenize(full_prompt.encode("utf-8"), add_bos=True)
-    # if len(prompt_tokens) > 2048:
-    #     print(f"⚠️ 프롬프트가 너무 깁니다. {len(prompt_tokens)} → 2048로 자릅니다.")
-    #     prompt_tokens = prompt_tokens[:2048]
-    #     full_prompt = llm.detokenize(prompt_tokens).decode("utf-8")
-
-    # # ✅ 모델 호출
-    # try:
-    #     output = llm(
-    #         prompt=full_prompt,
-    #         max_tokens=512,
-    #         stop=["<|eot_id|>"],
-    #         echo=False
-    #     )["choices"][0]["text"]
-    #     print("💬 llama.cpp 모델 응답 도착")
-    # except Exception as e:
-    #     import traceback
-    #     print("❌ llama.cpp 모델 invoke 실패:")
-    #     traceback.print_exc()
-    #     output = None
     
     # ✅ Claude API로 기사 본문 생성
     try:
@@ -144,23 +106,38 @@ def generate_report(
         title_prompt = f"""
         당신은 스포츠 기사 제목 생성 전문가입니다.
 
-        아래 기사 내용을 바탕으로 가장 적절하고 임팩트 있는 **기사 제목**을 한 줄로 작성하세요.(15~20자 이내 권장)
+        아래 기사 내용을 바탕으로 **적절하고 임팩트 있는 기사 제목 3개**를 제안하세요. 
+        조건:
+        - 각 제목은 한 줄, 15~20자 이내 권장
+        - 번호를 매기지 말고, JSON 배열 형식으로 반환하세요.
         
         [출력 형식]
-        "제목"
+        ["제목1", "제목2", "제목3"]
 
         기사 내용:
         {output.strip()}
         """
         try:
-            title_output = call_claude(title_prompt, max_tokens=64).strip()
-            print("📝 기사 제목 생성 완료:", title_output)
+            raw = call_claude(title_prompt, max_tokens=128).strip()
+            import json, re
+            try:
+                titles = json.loads(raw)
+                assert isinstance(titles, list), "titles is not a list"
+            except Exception:
+                # 폴백: 따옴표 안 문자열들 or 줄 단위 3개
+                candidates = re.findall(r'"([^"]{5,40})"', raw) or \
+                             [s.strip() for s in raw.splitlines() if s.strip()]
+                titles = candidates[:3]
+            # 클린업 & 개수 보정
+            titles = [t.strip(' "\'“”') for t in titles if t.strip()][:3]
+            if len(titles) == 0:
+                titles = ["기사 제목 생성 실패"]
+            print("📝 기사 제목 3개 생성:", titles)
         except Exception as e:
-            title_output = "기사 제목 생성 실패"
+            titles = ["기사 제목 생성 실패"]
             print("❌ 제목 생성 오류:", e)
-    else:
-        title_output = "본문 생성 실패로 제목 없음"
-        
+            
+            
     #  태그 생성 (LLM 콜백으로 call_claude 주입)
     if output:
         try:
@@ -198,55 +175,72 @@ def generate_report(
 
 
     # 9. 출처 수집
-    sources = [doc.metadata.get("source") for doc in all_docs if "source" in doc.metadata]
-
+    sources = []
+    for doc in all_docs:
+        src = doc.metadata.get("source")
+        if src and src not in sources:
+            sources.append(src)
 
 
     # 10. JSON 형태로 반환
     result = {
         "user_request": f"{topic}",
-        "title": title_output,
+        "title": titles, 
         "content": output.strip(),
         "sources": sources,
         "tags": tags,
         "captions": captions,
     }
     print("📦 최종 반환 결과:")
-    print(f"  - title: {result['title']}")
+    print(f"  - title: {result['title']} (개수: {len(result['title'])})")
     print(f"  - content 길이: {len(result['content'])}")
     print(f"  - sources: {result['sources']}")
     print(f"  - tags: {result['tags']} (타입: {type(result['tags'])}, 길이: {len(result['tags'])})")
     print(f"  - captions: {result['captions']}")
     return result
 
+def collect_file_paths(raw: str):
+    """입력받은 경로나 문자열에서 유효한 PDF/CSV 파일 경로 리스트를 반환"""
+    if os.path.isdir(raw):
+        file_paths = [
+            os.path.join(raw, f)
+            for f in os.listdir(raw)
+            if f.lower().endswith((".pdf", ".csv"))
+        ]
+    else:
+        file_paths = [
+            p.strip() for p in raw.split(",") if is_supported(p.strip())
+        ]
+    return file_paths
 
-
-# # API 요청/응답 스키마
-# class GenerateReportRequest(BaseModel):
-#     prompt: str
-
-# class GenerateReportResponse(BaseModel):
-#     title: str
-#     content: str
-#     sources: List[str]
-
-    
-# # FastAPI 라우터
-# app = FastAPI(title="AI Report Generator API")
-
-# @app.post("/generate_report", response_model=GenerateReportResponse)
-# async def generate_report_api(prompt: str = Form(...)):
-#     report = generate_report(prompt)
-#     return GenerateReportResponse(**report)  # ✅ 언팩해서 딱 맞게 전달
 
 
 if __name__ == "__main__":
+    print(" 처리할 PDF 또는 CSV 파일 경로를 입력하세요.")
+    print(" - 쉼표(,)로 구분해서 여러 개 가능")
+    print(" - 또는 폴더 경로 입력 시 하위 PDF/CSV 모두 처리됨")
+    raw = input("입력: ").strip()
+
+    file_paths = collect_file_paths(raw)
+
+    if not file_paths:
+        print(" PDF 또는 CSV 파일이 없습니다.")
+    else:
+        total_chunks = process_multiple_files(file_paths)
+        print(f"\n 총 {len(file_paths)}개 파일, {total_chunks}개의 청크가 저장되었습니다.")
+
+    
     topic = input(" 기사 주제를 입력하세요: ")
     report = generate_report(topic, file=None, references=None)
     print("\n📄 기사 요구사항:")
     print(report["user_request"])
-    print("\n📰 기사 제목:")
-    print(report["title"])
+    print("\n📰 제목 후보(3):")
+    titles = report.get("title", [])
+    if titles:
+        for i, t in enumerate(titles, 1):
+            print(f"  {i}. {t}")
+    else:
+        print("(제목 없음)")
     print("\n📝 기사 내용:")
     print(report["content"])
     print("\n🏷️ 태그:")

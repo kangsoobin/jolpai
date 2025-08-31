@@ -17,8 +17,11 @@ if __name__ == "__main__":
 
     if os.path.isdir(raw):
         file_paths = [
-            os.path.join(raw, f) for f in os.listdir(raw) if f.endswith(".pdf", ".csv")
+            os.path.join(raw, f)
+            for f in os.listdir(raw)
+            if f.lower().endswith((".pdf", ".csv"))
         ]
+
     else:
         file_paths = [
             p.strip() for p in raw.split(",") if is_supported(p.strip())

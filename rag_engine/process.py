@@ -154,23 +154,6 @@ def build_main_prompt(table_str: str) -> str:
 
 
 
-# ✅ CSV → 줄글 한 문단 생성
-# def convert_csv_to_text(csv_path: str) -> str:
-#     try:
-#         df = pd.read_csv(csv_path)
-#         table_str = df.to_markdown(index=False)
-#     except Exception as e:
-#         raise RuntimeError(f"[❌ 오류] CSV를 불러올 수 없습니다: {e}")
-
-#     prompt = build_prompt(table_str)
-
-#     output = llm(
-#         prompt,
-#         temperature=0.7,
-#         max_tokens=2048,
-#         stop=["<|eot_id|>"]
-#     )
-#     return output["choices"][0]["text"].strip()
 def convert_csv_to_text(csv_path: str) -> str:
     try:
         df = pd.read_csv(csv_path)

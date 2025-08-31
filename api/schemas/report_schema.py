@@ -9,7 +9,7 @@ class UploadPDFResponse(BaseModel):
 
 class GenerateReportResponse(BaseModel):
     user_request: str
-    title: str
+    title: List[str] = []
     content: str
     sources: List[str] = []
     tags: List[str] = []
