@@ -1,7 +1,6 @@
 # rag_engine/embedder.py
-
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from __future__ import annotations
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from typing import List
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
