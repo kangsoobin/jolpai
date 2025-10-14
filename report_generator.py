@@ -286,58 +286,60 @@ def collect_file_paths(raw: str):
 
 # 🔽 [함수 추가] DB 직접 연결 및 데이터 확인을 위한 테스트 함수
 def debug_database_connection():
-    """config.yaml을 읽어 DB에 직접 연결하고 샘플 데이터를 출력하는 디버깅 함수"""
+    """config.yaml을 읽어 DB에 직접 연결하고, 존재하는 모든 테이블 목록을 출력합니다."""
     print("\n" + "="*50)
-    print(" STEP 1. 데이터베이스 연결 및 샘플 확인 ".center(50, "="))
+    print(" STEP 1. 데이터베이스 연결 및 전체 테이블 목록 확인 ".center(50, "="))
     print("="*50)
 
     try:
         with open("config.yaml", "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
 
-        # config.yaml에서 pg_players와 pg_teams 설정 가져오기
-        pg_configs = {
-            name: config
-            for name, config in cfg.get("retrievers", {}).items()
-            if name.startswith("pg") and config.get("enabled")
-        }
+        # ❗️ config.yaml에서 첫 번째 PostgreSQL 설정만 가져와서 테스트
+        pg_config = next(
+            (config for name, config in cfg.get("retrievers", {}).items()
+             if name.startswith("pg") and config.get("enabled")),
+            None
+        )
 
-        if not pg_configs:
+        if not pg_config:
             print("❌ config.yaml에 활성화된 PostgreSQL 리트리버 설정이 없습니다.")
             return
 
-        # 각 DB에 연결해서 데이터 샘플 출력
-        for name, config in pg_configs.items():
-            dsn = config.get("dsn")
-            table = config.get("table")
-            print(f"\n--- [ {name} ] 테이블({table}) 연결 시도 ---")
+        dsn = pg_config.get("dsn")
+        if not dsn:
+            print("❌ PostgreSQL 리트리버의 dsn 정보가 비어있습니다.")
+            return
 
-            if not dsn or not table:
-                print(f"❌ '{name}'의 dsn 또는 table 정보가 비어있습니다.")
-                continue
+        print(f"\n--- [ {dsn.split('/')[-1]} ] DB에 연결 시도 ---")
+        try:
+            with psycopg.connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    # ❗️ [핵심] DB에 존재하는 모든 테이블과 그 위치(스키마)를 조회하는 쿼리
+                    list_tables_query = """
+                        SELECT schemaname, tablename
+                        FROM pg_tables
+                        WHERE schemaname NOT IN ('pg_catalog', 'information_schema');
+                    """
+                    cur.execute(list_tables_query)
+                    tables = cur.fetchall()
 
-            try:
-                with psycopg.connect(dsn) as conn:
-                    with conn.cursor() as cur:
-                        # 테이블에서 5개 행만 가져오는 쿼리
-                        cur.execute(f"SELECT * FROM {table} LIMIT 5")
-                        rows = cur.fetchall()
-                        column_names = [desc[0] for desc in cur.description]
+                    print("✅ DB 연결 성공! DB 안에 존재하는 모든 테이블 목록:")
+                    if not tables:
+                        print(" -> 찾을 수 있는 테이블이 없습니다. 서버 앱이 테이블을 생성했는지 확인하세요.")
+                    else:
+                        for schema, table_name in tables:
+                            print(f" -> 위치(스키마): '{schema}', 테이블 이름: '{table_name}'")
 
-                        print(f"✅ DB 연결 성공! '{table}' 테이블의 샘플 데이터(최대 5개):")
-                        for row in rows:
-                            # 보기 좋게 딕셔너리 형태로 출력
-                            print(dict(zip(column_names, row)))
-
-            except Exception as e:
-                print(f"🔥🔥🔥 '{name}' DB 연결 또는 데이터 조회 실패!")
-                print(f"에러: {e}")
+        except Exception as e:
+            print(f"🔥🔥🔥 DB 연결 또는 테이블 목록 조회 실패!")
+            print(f"에러: {e}")
 
     except FileNotFoundError:
-        print("❌ config.yaml 파일을 찾을 수 없습니다. 파일이 `jolpai` 폴더 내에 있는지 확인하세요.")
+        print("❌ config.yaml 파일을 찾을 수 없습니다.")
     except Exception as e:
         print(f"🔥🔥🔥 디버깅 중 예상치 못한 에러 발생: {e}")
-        
+      
         
 
 

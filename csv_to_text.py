@@ -2,12 +2,12 @@ import pandas as pd
 #from llama_cpp import Llama
 
 # ✅ LLM 모델 로드
-llm = Llama(
-    model_path="models/llama-3.2-Korean-Bllossom-3B-Q6_K_L.gguf",
-    n_ctx=4096,  # 필요하면 4096으로 늘려도 됨
-    n_threads=4,
-    verbose=False
-)
+# llm = Llama(
+#     model_path="models/llama-3.2-Korean-Bllossom-3B-Q6_K_L.gguf",
+#     n_ctx=4096,  # 필요하면 4096으로 늘려도 됨
+#     n_threads=4,
+#     verbose=False
+# )
 
 # ✅ 프롬프트 템플릿
 def build_prompt(table_str: str) -> str:
@@ -76,24 +76,24 @@ def build_prompt(table_str: str) -> str:
 
 # ✅ CSV → 줄글 변환 함수
 
-def convert_csv_to_text(csv_path: str) -> str:
-    try:
-        df = pd.read_csv(csv_path)
-        df = df.head(15)  # 긴 CSV 방지용 (최대 10행만)
-        print(df)
-    except Exception as e:
-        return f"[❌ 오류] CSV를 불러올 수 없습니다: {e}"
+# def convert_csv_to_text(csv_path: str) -> str:
+#     try:
+#         df = pd.read_csv(csv_path)
+#         df = df.head(15)  # 긴 CSV 방지용 (최대 10행만)
+#         print(df)
+#     except Exception as e:
+#         return f"[❌ 오류] CSV를 불러올 수 없습니다: {e}"
 
-    table_str = df.to_markdown(index=False)
-    prompt = build_prompt(table_str)
+#     table_str = df.to_markdown(index=False)
+#     prompt = build_prompt(table_str)
 
-    output = llm(
-        prompt,
-        temperature=0.7,
-        max_tokens=2048,
-        stop=["<|eot_id|>"]
-    )
-    return output["choices"][0]["text"].strip()
+#     output = llm(
+#         prompt,
+#         temperature=0.7,
+#         max_tokens=2048,
+#         stop=["<|eot_id|>"]
+#     )
+#     return output["choices"][0]["text"].strip()
 
 # ✅ 사용자 입력 받기
 if __name__ == "__main__":
