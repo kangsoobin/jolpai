@@ -1,11 +1,11 @@
 # rag_engine/chain.py
- 
+from __future__ import annotations
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableMap, RunnableLambda
 from rag_engine.prompt import get_search_prompt
 from transformers import AutoTokenizer
 
-from __future__ import annotations
+
 from typing import Tuple, List, Dict
 from pathlib import Path
 import yaml
