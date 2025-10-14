@@ -1,4 +1,5 @@
-# Doc, Retriever 인터페이스(Protocol/dataclass)
+#rag_engine/retrievers/base.py
+# # Doc, Retriever 인터페이스(Protocol/dataclass)
 
 from __future__ import annotations
 from dataclasses import dataclass
