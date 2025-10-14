@@ -127,45 +127,97 @@ def _format_context(docs: List[Document]) -> str:
 #     return context_str, fused_docs
 
 
+# def get_context(query_text: str) -> Tuple[str, List[Document]]:
+#     """
+#     config.yaml 파일을 읽어, 그 안에 정의된 모든 리트리버와 리랭커를
+#     자동으로 생성하고, PostgreSQL 결과에만 리랭커를 적용한 뒤,
+#     최종적으로 모든 정보를 가중 병합하여 컨텍스트를 반환합니다.
+#     """
+#     # 1. 설정 파일(설계도) 로드
+#     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+#         cfg = yaml.safe_load(f)
+
+#     # 2. 설계도를 바탕으로 모든 부품(리트리버, 리랭커 등) 조립
+#     components = build_components(cfg)
+#     retrievers = components["retrievers"]
+#     reranker = components["reranker"]
+#     weights = components["weights"]
+
+#     # 3. 조립된 모든 리트리버를 사용해 각자 정보 수집
+#     results: Dict[str, List[Document]] = {}
+#     for name, retriever in retrievers.items():
+#         config = cfg["retrievers"][name]
+#         k = config.get("n_results", 8)
+#         print(f"🔍 '{name}' 리트리버에서 {k}개 문서를 검색합니다...")
+        
+#         docs = retriever.retrieve(Query(query_text, top_k=k))
+
+#         # ❗️ [핵심] 이름이 'pg'로 시작하는 리트리버 결과에만 리랭커(검수 전문가) 적용
+#         if name.startswith("pg") and reranker:
+#             print(f"🧐 '{name}' 리트리버의 결과를 리랭킹합니다...")
+#             reranker_top_k = cfg.get("reranker", {}).get("top_k")
+#             docs = reranker.rerank(query_text, docs, top_k=reranker_top_k)
+        
+#         results[name] = docs
+
+#     # 4. 수집된 모든 정보들을 가중치에 따라 종합
+#     print("🔄 모든 검색 결과를 가중 병합합니다...")
+#     final_top_k = cfg.get("final_top_k", 10)
+#     fused_docs = fuse_weighted(results, weights, top_k=final_top_k)
+
+#     # 5. LLM이 이해하기 쉬운 형식으로 최종 보고서(컨텍스트) 작성
+#     context_str = _format_context(fused_docs)
+#     return context_str, fused_docs
+
+
 def get_context(query_text: str) -> Tuple[str, List[Document]]:
     """
-    config.yaml 파일을 읽어, 그 안에 정의된 모든 리트리버와 리랭커를
-    자동으로 생성하고, PostgreSQL 결과에만 리랭커를 적용한 뒤,
-    최종적으로 모든 정보를 가중 병합하여 컨텍스트를 반환합니다.
+    config.yaml 기반으로 모든 리트리버/리랭커를 만들고,
+    일부 리트리버에서 에러가 발생하더라도 멈추지 않고,
+    성공한 결과만으로 최종 컨텍스트를 반환하는 튼튼한 함수입니다.
     """
-    # 1. 설정 파일(설계도) 로드
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    # 2. 설계도를 바탕으로 모든 부품(리트리버, 리랭커 등) 조립
     components = build_components(cfg)
     retrievers = components["retrievers"]
     reranker = components["reranker"]
     weights = components["weights"]
 
-    # 3. 조립된 모든 리트리버를 사용해 각자 정보 수집
     results: Dict[str, List[Document]] = {}
+    
+    # --- [핵심] 모든 리트리버를 순회하며 예외 처리 ---
     for name, retriever in retrievers.items():
-        config = cfg["retrievers"][name]
-        k = config.get("n_results", 8)
-        print(f"🔍 '{name}' 리트리버에서 {k}개 문서를 검색합니다...")
-        
-        docs = retriever.retrieve(Query(query_text, top_k=k))
+        try:
+            config = cfg["retrievers"][name]
+            k = config.get("n_results", 8)
+            print(f"🔍 '{name}'에서 {k}개 검색...")
+            
+            docs = retriever.retrieve(Query(query_text, top_k=k))
 
-        # ❗️ [핵심] 이름이 'pg'로 시작하는 리트리버 결과에만 리랭커(검수 전문가) 적용
-        if name.startswith("pg") and reranker:
-            print(f"🧐 '{name}' 리트리버의 결과를 리랭킹합니다...")
-            reranker_top_k = cfg.get("reranker", {}).get("top_k")
-            docs = reranker.rerank(query_text, docs, top_k=reranker_top_k)
-        
-        results[name] = docs
+            # 이름이 'pg'로 시작하는 리트리버 결과에만 리랭커 적용
+            if name.startswith("pg") and reranker:
+                print(f"🧐 '{name}' 결과 리랭킹...")
+                rer_topk = cfg.get("reranker", {}).get("top_k")
+                docs = reranker.rerank(query_text, docs, top_k=rer_topk)
+            
+            results[name] = docs
+            
+        except Exception as e:
+            # ❗️ 에러가 발생해도 프로그램을 멈추지 않고, 경고 메시지만 출력합니다.
+            print(f"🔥🔥🔥 경고: '{name}' 리트리버 실행 중 에러 발생! 이 리트리버를 건너뜁니다.")
+            print(f"에러 원인: {e}")
+            # results 딕셔너리에 아무것도 추가하지 않고 그냥 넘어갑니다.
 
-    # 4. 수집된 모든 정보들을 가중치에 따라 종합
-    print("🔄 모든 검색 결과를 가중 병합합니다...")
+    # --- 에러 없이 성공한 결과들만으로 가중 병합 ---
+    if not results:
+        print("⚠️ 모든 리트리버에서 정보를 가져오지 못했습니다. 빈 컨텍스트를 반환합니다.")
+        return "", []
+
+    print("🔄 성공적으로 검색된 결과들을 가중 병합합니다...")
     final_top_k = cfg.get("final_top_k", 10)
     fused_docs = fuse_weighted(results, weights, top_k=final_top_k)
 
-    # 5. LLM이 이해하기 쉬운 형식으로 최종 보고서(컨텍스트) 작성
     context_str = _format_context(fused_docs)
     return context_str, fused_docs
 
