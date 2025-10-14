@@ -1,7 +1,7 @@
 # rag_engine/vector_store.py
 
-from langchain_community.vectorstores import Chroma
 from __future__ import annotations
+from langchain_community.vectorstores import Chroma
 from typing import Optional
 from langchain_community.vectorstores import Chroma as LCChroma
 
