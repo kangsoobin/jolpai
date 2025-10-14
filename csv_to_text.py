@@ -1,5 +1,5 @@
 import pandas as pd
-from llama_cpp import Llama
+#from llama_cpp import Llama
 
 # ✅ LLM 모델 로드
 llm = Llama(

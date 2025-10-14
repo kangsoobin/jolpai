@@ -2,7 +2,7 @@ from langchain.prompts import PromptTemplate
 #from rag_engine.llm import load_llm
 from rag_engine.embedder import get_embedder
 from rag_engine.vector_store import load_vector_db, add_to_vector_db
-from rag_engine.search import search_serper
+#from rag_engine.search import search_serper
 from transformers import AutoTokenizer
 from langchain.schema import Document
 import uuid
@@ -20,9 +20,17 @@ from rag_engine.process import process_multiple_files
 from rag_engine.tagger import generate_keyword_tags
 from rag_engine.captioner import generate_captions
 import io, base64, uuid, os
-from cli_runner import is_supported
-from rag_engine.process import process_multiple_files
 
+
+import yaml  # yaml 라이브러리 임포트
+import psycopg #  DB 직접 연결을 위한 라이브러리
+
+
+from rag_engine.chain import get_context   # ← 멀티 리트리버 + 가중 합성
+from rag_engine.prompt import REPORT_PROMPT  # ← 컨텍스트 삽입용 템플릿
+from rag_engine.tagger import generate_keyword_tags
+from rag_engine.captioner import generate_captions
+from cli_runner import is_supported  # collect_file_paths에서 사용
 
 
 load_dotenv()
@@ -61,34 +69,52 @@ def generate_report(
     print("📌 1. 함수 진입 - topic:", topic)
     
     
-        
+    # 1) RAG 컨텍스트 생성 (멀티 리트리버 → (옵션)리랭크 → 3:7 가중 병합)
+    context_str, fused_docs = get_context(topic)  # ← 핵심 전환 포인트
+    
+    # 🔽 [추가] LLM에 전달하기 직전의 최종 컨텍스트를 출력합니다.
+    print("\n" + "-"*50)
+    print("✅ [디버그] 최종적으로 LLM에 전달될 컨텍스트(재료):")
+    print(context_str)
+    print("-"*50 + "\n")
+    
+
+    # 2) references가 있다면 컨텍스트 뒤에 붙이기
+    if references:
+        req_text = "\n\n[사용자 요구사항]\n" + "\n".join(references)
+        context_str = f"{context_str}{req_text}"
+
+    # 3) 프롬프트 구성 (컨텍스트 삽입형)
+    full_prompt = REPORT_PROMPT.format(context=context_str, question=topic)
+    print("📌 2. 프롬프트 생성 완료")
+    
     # 벡터DB 열고 검색
-    embedder = get_embedder()
-    vectordb = load_vector_db(embedder)
+    # embedder = get_embedder()
+    # vectordb = load_vector_db(embedder)
     
     
 
-    # 4. 관련 문서 검색(내부검색)
-    retriever = vectordb.as_retriever()
-    internal_docs = retriever.get_relevant_documents(topic)
+    # # 4. 관련 문서 검색(내부검색)
+    # retriever = vectordb.as_retriever()
+    # internal_docs = retriever.get_relevant_documents(topic)
     
     # 외부 검색 (Serper)
     #external_docs = search_serper(topic, num_results=3)
 
     # 6. 문서 통합 및 컨텍스트 구성성
     # all_docs = internal_docs + external_docs
-    all_docs = internal_docs
-    context = "\n\n".join([doc.page_content for doc in all_docs])
-    print("✅ 6. 문서 통합 완료 - 문서 수:", len(all_docs))
+    # all_docs = internal_docs
+    # context = "\n\n".join([doc.page_content for doc in all_docs])
+    # print("✅ 6. 문서 통합 완료 - 문서 수:", len(all_docs))
 
-    # 5. references가 있다면 문맥 뒷부분에 사용자 요구사항으로 붙이기
-    if references:
-        requirements_text = "\n\n[사용자 요구사항]\n" + "\n".join(references)
-        context += requirements_text
+    # # 5. references가 있다면 문맥 뒷부분에 사용자 요구사항으로 붙이기
+    # if references:
+    #     requirements_text = "\n\n[사용자 요구사항]\n" + "\n".join(references)
+    #     context += requirements_text
 
-    prompt_template = get_search_prompt() #-> completion호출 방식때 겟서치 프롬프트 함수
-    full_prompt = prompt_template.format(context=context, question=topic)
-    print("📌 7. 프롬프트 생성 완료")
+    # prompt_template = get_search_prompt() #-> completion호출 방식때 겟서치 프롬프트 함수
+    # full_prompt = prompt_template.format(context=context, question=topic)
+    # print("📌 7. 프롬프트 생성 완료")
 
     
     # ✅ Claude API로 기사 본문 생성
@@ -100,41 +126,79 @@ def generate_report(
         print("❌ Claude API 호출 실패:")
         traceback.print_exc()
         output = None
+        
+    # # 5) 제목 3개 생성
+    # titles: List[str] = ["기사 제목 생성 실패"]
 
+    # if output:
+    #     title_prompt = f"""
+    #     당신은 스포츠 기사 제목 생성 전문가입니다.
 
+    #     아래 기사 내용을 바탕으로 **적절하고 임팩트 있는 기사 제목 3개**를 제안하세요. 
+    #     조건:
+    #     - 각 제목은 한 줄, 15~20자 이내 권장
+    #     - 번호를 매기지 말고, JSON 배열 형식으로 반환하세요.
+        
+    #     [출력 형식]
+    #     ["제목1", "제목2", "제목3"]
+
+    #     기사 내용:
+    #     {output.strip()}
+    #     """
+    #     try:
+    #         raw = call_claude(title_prompt, max_tokens=128).strip()
+    #         import json, re
+    #         try:
+    #             titles = json.loads(raw)
+    #             assert isinstance(titles, list), "titles is not a list"
+    #         except Exception:
+    #             # 폴백: 따옴표 안 문자열들 or 줄 단위 3개
+    #             candidates = re.findall(r'"([^"]{5,40})"', raw) or \
+    #                          [s.strip() for s in raw.splitlines() if s.strip()]
+    #             titles = candidates[:3]
+    #         # 클린업 & 개수 보정
+    #         titles = [t.strip(' "\'“”') for t in titles if t.strip()][:3]
+    #         if len(titles) == 0:
+    #             titles = ["기사 제목 생성 실패"]
+    #         print("📝 기사 제목 3개 생성:", titles)
+    #     except Exception as e:
+    #         titles = ["기사 제목 생성 실패"]
+    #         print("❌ 제목 생성 오류:", e)
+    
+    
+       # 5) 제목 3개 생성
+    titles: List[str] = ["기사 제목 생성 실패"]
     if output:
         title_prompt = f"""
-        당신은 스포츠 기사 제목 생성 전문가입니다.
+당신은 스포츠 기사 제목 생성 전문가입니다.
 
-        아래 기사 내용을 바탕으로 **적절하고 임팩트 있는 기사 제목 3개**를 제안하세요. 
-        조건:
-        - 각 제목은 한 줄, 15~20자 이내 권장
-        - 번호를 매기지 말고, JSON 배열 형식으로 반환하세요.
-        
-        [출력 형식]
-        ["제목1", "제목2", "제목3"]
+아래 기사 내용을 바탕으로 **적절하고 임팩트 있는 기사 제목 3개**를 제안하세요. 
+조건:
+- 각 제목은 한 줄, 15~20자 이내 권장
+- 번호를 매기지 말고, JSON 배열 형식으로 반환하세요.
 
-        기사 내용:
-        {output.strip()}
-        """
+[출력 형식]
+["제목1", "제목2", "제목3"]
+
+기사 내용:
+{output.strip()}
+"""
         try:
             raw = call_claude(title_prompt, max_tokens=128).strip()
-            import json, re
             try:
-                titles = json.loads(raw)
-                assert isinstance(titles, list), "titles is not a list"
+                titles_json = json.loads(raw)
+                if isinstance(titles_json, list) and titles_json:
+                    titles = [str(t).strip(' "\'“”') for t in titles_json][:3]
+                else:
+                    raise ValueError("titles json empty")
             except Exception:
-                # 폴백: 따옴표 안 문자열들 or 줄 단위 3개
+                import re
                 candidates = re.findall(r'"([^"]{5,40})"', raw) or \
-                             [s.strip() for s in raw.splitlines() if s.strip()]
-                titles = candidates[:3]
-            # 클린업 & 개수 보정
-            titles = [t.strip(' "\'“”') for t in titles if t.strip()][:3]
-            if len(titles) == 0:
-                titles = ["기사 제목 생성 실패"]
+                            [s.strip() for s in raw.splitlines() if s.strip()]
+                candidates = [c.strip(' "\'“”') for c in candidates]
+                titles = candidates[:3] or ["기사 제목 생성 실패"]
             print("📝 기사 제목 3개 생성:", titles)
         except Exception as e:
-            titles = ["기사 제목 생성 실패"]
             print("❌ 제목 생성 오류:", e)
             
             
@@ -174,13 +238,19 @@ def generate_report(
         captions = {}
 
 
-    # 9. 출처 수집
+    # # 9. 출처 수집
+    # sources = []
+    # for doc in all_docs:
+    #     src = doc.metadata.get("source")
+    #     if src and src not in sources:
+    #         sources.append(src)
+
+    # 8) 출처 수집 (가중 병합된 최종 문서 기준)
     sources = []
-    for doc in all_docs:
-        src = doc.metadata.get("source")
+    for d in fused_docs:
+        src = d.metadata.get("source") or d.metadata.get("filename") or d.id
         if src and src not in sources:
             sources.append(src)
-
 
     # 10. JSON 형태로 반환
     result = {
@@ -214,8 +284,68 @@ def collect_file_paths(raw: str):
     return file_paths
 
 
+# 🔽 [함수 추가] DB 직접 연결 및 데이터 확인을 위한 테스트 함수
+def debug_database_connection():
+    """config.yaml을 읽어 DB에 직접 연결하고 샘플 데이터를 출력하는 디버깅 함수"""
+    print("\n" + "="*50)
+    print(" STEP 1. 데이터베이스 연결 및 샘플 확인 ".center(50, "="))
+    print("="*50)
+
+    try:
+        with open("config.yaml", "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+
+        # config.yaml에서 pg_players와 pg_teams 설정 가져오기
+        pg_configs = {
+            name: config
+            for name, config in cfg.get("retrievers", {}).items()
+            if name.startswith("pg") and config.get("enabled")
+        }
+
+        if not pg_configs:
+            print("❌ config.yaml에 활성화된 PostgreSQL 리트리버 설정이 없습니다.")
+            return
+
+        # 각 DB에 연결해서 데이터 샘플 출력
+        for name, config in pg_configs.items():
+            dsn = config.get("dsn")
+            table = config.get("table")
+            print(f"\n--- [ {name} ] 테이블({table}) 연결 시도 ---")
+
+            if not dsn or not table:
+                print(f"❌ '{name}'의 dsn 또는 table 정보가 비어있습니다.")
+                continue
+
+            try:
+                with psycopg.connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        # 테이블에서 5개 행만 가져오는 쿼리
+                        cur.execute(f"SELECT * FROM {table} LIMIT 5")
+                        rows = cur.fetchall()
+                        column_names = [desc[0] for desc in cur.description]
+
+                        print(f"✅ DB 연결 성공! '{table}' 테이블의 샘플 데이터(최대 5개):")
+                        for row in rows:
+                            # 보기 좋게 딕셔너리 형태로 출력
+                            print(dict(zip(column_names, row)))
+
+            except Exception as e:
+                print(f"🔥🔥🔥 '{name}' DB 연결 또는 데이터 조회 실패!")
+                print(f"에러: {e}")
+
+    except FileNotFoundError:
+        print("❌ config.yaml 파일을 찾을 수 없습니다. 파일이 `jolpai` 폴더 내에 있는지 확인하세요.")
+    except Exception as e:
+        print(f"🔥🔥🔥 디버깅 중 예상치 못한 에러 발생: {e}")
+        
+        
+
 
 if __name__ == "__main__":
+    # 이 함수를 가장 먼저 실행하여 PostgreSQL DB 연결을 확인합니다.
+    debug_database_connection()
+    print("\n" + "="*50)
+    
     print(" 처리할 PDF 또는 CSV 파일 경로를 입력하세요.")
     print(" - 쉼표(,)로 구분해서 여러 개 가능")
     print(" - 또는 폴더 경로 입력 시 하위 PDF/CSV 모두 처리됨")
