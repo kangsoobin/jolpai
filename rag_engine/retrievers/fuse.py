@@ -1,3 +1,4 @@
+# rag_engine/retrievers/fuse.py
 # FusionRetriever: 70/30 분량 보장 + PG측만 리랭크
 
 from __future__ import annotations

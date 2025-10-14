@@ -1,4 +1,5 @@
-# 점수 정규화, 중복제거, 분량(개수/토큰) 할당
+# rag_engine/retrievers/utils.py
+# # 점수 정규화, 중복제거, 분량(개수/토큰) 할당
 
 from __future__ import annotations
 import hashlib
