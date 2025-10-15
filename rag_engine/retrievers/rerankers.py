@@ -11,7 +11,7 @@ class NoOpReranker(Reranker):
     # (기존 코드는 그대로 둡니다)
     ...
 
-# 🔽 [아래 클래스를 통째로 추가하세요]
+
 class CrossEncoderReranker(Reranker):
     def __init__(self, model_name: str = "bongsoo/kpf-cross-encoder-v1"):
         # 한국어에 특화된 리랭킹 모델을 불러옵니다.
