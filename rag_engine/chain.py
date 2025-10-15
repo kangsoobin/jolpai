@@ -90,11 +90,7 @@ def _load_cfg() -> Dict:
 
 def _format_context(docs: List[Document]) -> str:
     """LLM에 투입할 컨텍스트 문자열 포맷"""
-    lines = []
-    for i, d in enumerate(docs, 1):
-        src = d.metadata.get("source") or d.metadata.get("filename") or d.id
-        lines.append(f"[{i}] (source: {src})\n{d.content}\n")
-    return "\n---\n".join(lines)
+    return "\n\n".join([d.content for d in docs])
 
 
 
