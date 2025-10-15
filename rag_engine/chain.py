@@ -89,6 +89,7 @@ def _load_cfg() -> Dict:
         return yaml.safe_load(f)
 
 def _format_context(docs: List[Document]) -> str:
+    print("🔥🔥🔥 새로운 _format_context 함수가 실행되었습니다! 🔥🔥🔥") 
     """LLM에 투입할 컨텍스트 문자열 포맷"""
     return "\n\n".join([d.content for d in docs])
 

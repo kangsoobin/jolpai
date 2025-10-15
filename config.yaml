@@ -3,7 +3,7 @@
 retrievers:
   chroma:
     enabled: true
-    n_results: 4
+    n_results: 3
   
   # 1번 PostgreSQL DB (선수 정보)
   pg_players:
@@ -30,4 +30,4 @@ reranker:
   type: "cross-encoder"
   top_k: 3
 
-final_top_k: 10
+final_top_k: 4
