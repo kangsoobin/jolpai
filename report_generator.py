@@ -22,6 +22,7 @@ from rag_engine.captioner import generate_captions
 import io, base64, uuid, os
 
 
+
 import yaml  # yaml 라이브러리 임포트
 import psycopg #  DB 직접 연결을 위한 라이브러리
 
@@ -85,8 +86,13 @@ def generate_report(
         context_str = f"{context_str}{req_text}"
 
     # 3) 프롬프트 구성 (컨텍스트 삽입형)
-    full_prompt = REPORT_PROMPT.format(context=context_str, question=topic)
+    # full_prompt = REPORT_PROMPT.format(context=context_str, question=topic)
+    # print("📌 2. 프롬프트 생성 완료")
+    
+    prompt_template = get_search_prompt()
+    full_prompt = prompt_template.format(context=context_str, question=topic)
     print("📌 2. 프롬프트 생성 완료")
+    
     
     # 벡터DB 열고 검색
     # embedder = get_embedder()

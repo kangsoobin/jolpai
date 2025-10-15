@@ -5,21 +5,19 @@ retrievers:
     enabled: true
     n_results: 8
   
-  # ⬇️ 1번 PostgreSQL DB (선수 정보)
+  # 1번 PostgreSQL DB (선수 정보)
   pg_players:
     enabled: true
-    # ❗️ 이 DSN 주소는 우리가 연결에 성공했던 그 주소입니다.
+    # db연결용 주소
     dsn: "postgresql://report_user:pizza@database-1.cv0u2ay2019p.ap-northeast-2.rds.amazonaws.com:5432/report_db" 
-    # ❗️ models.py에서 찾은 정확한 선수 테이블 이름
+    #  models.py에서 찾은 정확한 선수 테이블 이름
     table: "players"
     n_results: 5
 
-  # ⬇️ 2번 PostgreSQL DB (팀 정보)
+  # 2번 PostgreSQL DB (팀 정보)
   pg_teams:
     enabled: true
-    # ❗️ 선수 정보와 같은 DB에 있다면 DSN은 동일합니다.
     dsn: "postgresql://report_user:pizza@database-1.cv0u2ay2019p.ap-northeast-2.rds.amazonaws.com:5432/report_db"
-    # ❗️ models.py에서 찾은 정확한 팀 테이블 이름
     table: "teams"
     n_results: 5
 
