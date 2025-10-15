@@ -3,7 +3,7 @@
 retrievers:
   chroma:
     enabled: true
-    n_results: 8
+    n_results: 4
   
   # 1번 PostgreSQL DB (선수 정보)
   pg_players:
@@ -12,14 +12,14 @@ retrievers:
     dsn: "postgresql://report_user:pizza@database-1.cv0u2ay2019p.ap-northeast-2.rds.amazonaws.com:5432/report_db" 
     #  models.py에서 찾은 정확한 선수 테이블 이름
     table: "players"
-    n_results: 5
+    n_results: 3
 
   # 2번 PostgreSQL DB (팀 정보)
   pg_teams:
     enabled: true
     dsn: "postgresql://report_user:pizza@database-1.cv0u2ay2019p.ap-northeast-2.rds.amazonaws.com:5432/report_db"
     table: "teams"
-    n_results: 5
+    n_results: 3
 
 weights:
   chroma: 0.8
