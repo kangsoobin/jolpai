@@ -112,53 +112,55 @@ def get_context(query_text: str) -> Tuple[str, List[Document]]:
     results: Dict[str, List[Document]] = {}
     
     # --- [핵심] 모든 리트리버를 순회하며 예외 처리 ---이 문단 디비연결되면 살리기!!!!
-    # for name, retriever in retrievers.items():
-    #     try:
-    #         config = cfg["retrievers"][name]
-    #         k = config.get("n_results", 8)
-    #         print(f"🔍 '{name}'에서 {k}개 검색...")
-            
-    #         docs = retriever.retrieve(Query(query_text, top_k=k))
-
-    #         # 이름이 'pg'로 시작하는 리트리버 결과에만 리랭커 적용
-    #         if name.startswith("pg") and reranker:
-    #             print(f"🧐 '{name}' 결과 리랭킹...")
-    #             rer_topk = cfg.get("reranker", {}).get("top_k")
-    #             docs = reranker.rerank(query_text, docs, top_k=rer_topk)
-            
-    #         results[name] = docs
-            
-    #     except Exception as e:
-    #         # ❗️ 에러가 발생해도 프로그램을 멈추지 않고, 경고 메시지만 출력합니다.
-    #         print(f"🔥🔥🔥 경고: '{name}' 리트리버 실행 중 에러 발생! 이 리트리버를 건너뜁니다.")
-    #         print(f"에러 원인: {e}")
-    #         # results 딕셔너리에 아무것도 추가하지 않고 그냥 넘어갑니다.
-    # --- [핵심] 모든 리트리버를 순회하며 예외 처리 ---
     for name, retriever in retrievers.items():
-        # 🔽 [수정] 이름이 'pg'로 시작하면 이 리트리버는 건너뜁니다.
-        if name.startswith("pg"):
-            print(f"⚠️ [임시 비활성화] '{name}' 리트리버를 건너뜁니다.")
-            continue
-
         try:
             config = cfg["retrievers"][name]
             k = config.get("n_results", 8)
             print(f"🔍 '{name}'에서 {k}개 검색...")
-
-            docs = retriever.retrieve(Query(query_text, top_k=k))
             
-            # pg 리트리버는 건너뛰므로, 이 리랭킹 로직은 실행되지 않습니다.
+            docs = retriever.retrieve(Query(query_text, top_k=k))
+
+            # 이름이 'pg'로 시작하는 리트리버 결과에만 리랭커 적용
             if name.startswith("pg") and reranker:
                 print(f"🧐 '{name}' 결과 리랭킹...")
                 rer_topk = cfg.get("reranker", {}).get("top_k")
                 docs = reranker.rerank(query_text, docs, top_k=rer_topk)
-
+            
             results[name] = docs
-
+            
         except Exception as e:
             # ❗️ 에러가 발생해도 프로그램을 멈추지 않고, 경고 메시지만 출력합니다.
             print(f"🔥🔥🔥 경고: '{name}' 리트리버 실행 중 에러 발생! 이 리트리버를 건너뜁니다.")
             print(f"에러 원인: {e}")
+            # results 딕셔너리에 아무것도 추가하지 않고 그냥 넘어갑니다.
+            
+            
+    # --- [핵심] 모든 리트리버를 순회하며 예외 처리 --- 디비연결..안될때
+    # for name, retriever in retrievers.items():
+    #     # 🔽 [수정] 이름이 'pg'로 시작하면 이 리트리버는 건너뜁니다.
+    #     if name.startswith("pg"):
+    #         print(f"⚠️ [임시 비활성화] '{name}' 리트리버를 건너뜁니다.")
+    #         continue
+
+    #     try:
+    #         config = cfg["retrievers"][name]
+    #         k = config.get("n_results", 8)
+    #         print(f"🔍 '{name}'에서 {k}개 검색...")
+
+    #         docs = retriever.retrieve(Query(query_text, top_k=k))
+            
+    #         # pg 리트리버는 건너뛰므로, 이 리랭킹 로직은 실행되지 않습니다.
+    #         if name.startswith("pg") and reranker:
+    #             print(f"🧐 '{name}' 결과 리랭킹...")
+    #             rer_topk = cfg.get("reranker", {}).get("top_k")
+    #             docs = reranker.rerank(query_text, docs, top_k=rer_topk)
+
+    #         results[name] = docs
+
+    #     except Exception as e:
+    #         # ❗️ 에러가 발생해도 프로그램을 멈추지 않고, 경고 메시지만 출력합니다.
+    #         print(f"🔥🔥🔥 경고: '{name}' 리트리버 실행 중 에러 발생! 이 리트리버를 건너뜁니다.")
+    #         print(f"에러 원인: {e}")
             
             
     # --- 에러 없이 성공한 결과들만으로 가중 병합 ---

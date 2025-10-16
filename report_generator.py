@@ -350,7 +350,7 @@ def debug_database_connection():
 
 
 if __name__ == "__main__":
-    # 이 함수를 가장 먼저 실행하여 PostgreSQL DB 연결을 확인합니다.
+    # 이 함수를 가장 먼저 실행하여 PostgreSQL DB 연결을 확인합니다. 디비연결..
     # debug_database_connection()
     # print("\n" + "="*50)
     
