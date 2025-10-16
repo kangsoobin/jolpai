@@ -351,8 +351,8 @@ def debug_database_connection():
 
 if __name__ == "__main__":
     # 이 함수를 가장 먼저 실행하여 PostgreSQL DB 연결을 확인합니다.
-    debug_database_connection()
-    print("\n" + "="*50)
+    # debug_database_connection()
+    # print("\n" + "="*50)
     
     print(" 처리할 PDF 또는 CSV 파일 경로를 입력하세요.")
     print(" - 쉼표(,)로 구분해서 여러 개 가능")
