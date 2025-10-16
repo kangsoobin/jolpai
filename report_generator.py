@@ -28,7 +28,7 @@ import psycopg #  DB 직접 연결을 위한 라이브러리
 
 
 from rag_engine.chain import get_context   # ← 멀티 리트리버 + 가중 합성
-from rag_engine.prompt import REPORT_PROMPT  # ← 컨텍스트 삽입용 템플릿
+#from rag_engine.prompt import REPORT_PROMPT  # ← 컨텍스트 삽입용 템플릿
 from rag_engine.tagger import generate_keyword_tags
 from rag_engine.captioner import generate_captions
 from cli_runner import is_supported  # collect_file_paths에서 사용

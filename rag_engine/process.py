@@ -34,7 +34,7 @@ def call_claude(prompt: str) -> str:
         "model": "claude-3-5-sonnet-20241022",  # Sonnet 3.5 (2024-10-22 버전)
         "max_tokens": 2048,
         "messages": [
-            {"role": "user", "content": "..."}
+            {"role": "user", "content": prompt}
         ]
     }
     response = requests.post(url, headers=headers, json=payload)
