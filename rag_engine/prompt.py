@@ -43,14 +43,14 @@ def get_search_prompt():
     return PromptTemplate.from_template(template)
 
 # ↓↓↓ 새로 추가: RAG 컨텍스트를 그대로 넣어 기사/보고서 본문을 생성할 때 사용
-REPORT_PROMPT = """You are a helpful sports analyst.
-Use ONLY the following context to answer the user's request. Cite sources like [1], [2] when relevant.
+# REPORT_PROMPT = """You are a helpful sports analyst.
+# Use ONLY the following context to answer the user's request. Cite sources like [1], [2] when relevant.
 
-Context:
-{context}
+# Context:
+# {context}
 
-Question:
-{question}
+# Question:
+# {question}
 
-Answer in Korean with clear paragraphs (no bullet points):
-"""
+# Answer in Korean with clear paragraphs (no bullet points):
+# """
