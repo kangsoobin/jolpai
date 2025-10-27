@@ -3,7 +3,7 @@
 retrievers:
   chroma:
     enabled: true
-    n_results: 3
+    n_results: 15
   
   # 1번 PostgreSQL DB (선수 정보)
   pg_players:

@@ -19,19 +19,20 @@ class ChromaRetriever(Retriever):
     def retrieve(self, query: Query) -> List[Document]:
         n = query.top_k or self.n_results
         
-        # 🔽 [핵심] 예전에 사용했던 get_relevant_documents 메서드를 다시 사용합니다.
-        #    이것은 LangChain이 제공하는 안정적인 검색 기능입니다.
         langchain_docs = self.langchain_chroma.similarity_search(query.text, k=n)
         
-        # LangChain의 Document 형식을 우리가 사용하는 Document 형식으로 변환합니다.
         out: List[Document] = []
         for doc in langchain_docs:
+            
+            # --- 🔽 [여기만 수정] ---
             out.append(Document(
-                # LangChain 문서는 ID가 없으므로 고유 ID를 생성해줍니다.
-                id=str(uuid.uuid4()),
+                # [기존] id=str(uuid.uuid4()),
+                # [수정] id=None으로 설정하여 fuse.py가 content 기반 중복 제거를 하도록 유도
+                id=None, 
                 content=doc.page_content,
                 metadata=doc.metadata or {},
-                # LangChain 기본 검색은 score를 제공하지 않으므로 None으로 둡니다.
-                score=None
+                score=doc.metadata.get('_score', 0.0) 
             ))
+            # --- 🔼 [여기까지 수정] ---
+            
         return out
